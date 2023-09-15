@@ -1,17 +1,37 @@
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 import 'dart:ffi';
-import 'package:ffi/ffi.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:opencv_flutter_ffi/error_dialog.dart';
+import 'package:opencv_flutter_ffi/scan_result_tile.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'livecamera.dart';
 
 void main() {
-  runApp(MyApp());
+  if (Platform.isAndroid) {
+    WidgetsFlutterBinding.ensureInitialized();
+    [
+      Permission.location,
+      Permission.storage,
+      Permission.bluetooth,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan
+    ].request().then((status) {
+      runApp(const MyApp());
+    });
+  } else {
+    runApp(const MyApp());
+  }
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -23,7 +43,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
   final String title;
 
   @override
@@ -31,52 +51,114 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final ImagePicker _picker = ImagePicker();
-  // For Android, you call DynamicLibrary to find and open the shared library
-  // You don’t need to do this in iOS since all linked symbols map when an app runs.
-  final dylib = Platform.isAndroid
-      ? DynamicLibrary.open("libOpenCV_ffi.so")
-      : DynamicLibrary.process();
-  Image _img = Image.asset('assets/img/default.jpg');
+  BluetoothDevice? _device;
+  BluetoothCharacteristic? _c;
+
+  @override
+  void initState() {
+    FlutterBluePlus.startScan(
+        timeout: const Duration(seconds: 15), androidUsesFineLocation: false);
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton(
-                onPressed: () async {
-                  WidgetsFlutterBinding.ensureInitialized();
-                  // Obtain a list of the available cameras on the device.
-                  final cameras = await availableCameras();
-                  // Get a specific camera from the list of available cameras.
-                  final firstCamera = cameras.first;
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                              TakePictureScreen(camera: firstCamera)));
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  // setState(() {}); // force refresh of connectedSystemDevices
+                  if (FlutterBluePlus.isScanningNow == false) {
+                    FlutterBluePlus.startScan(
+                        timeout: const Duration(seconds: 15),
+                        androidUsesFineLocation: false);
+                  }
+                  return Future.delayed(
+                      Duration(milliseconds: 500)); // show refresh icon breifly
                 },
-                child: Text('Camera')),
+                child: SingleChildScrollView(
+                  child: StreamBuilder<List<ScanResult>>(
+                    stream: FlutterBluePlus.scanResults,
+                    builder: (context, snapshot) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("Devices"),
+                          ...(snapshot.data ?? [])
+                              .map(
+                                (r) => ScanResultTile(
+                                  result: r,
+                                  onTap: () async {
+                                    _device = r.device;
+                                    try {
+                                      await _device!.connect();
+                                      // Note: You must call discoverServices after every connection!
+                                      List<BluetoothService> services =
+                                          await _device!.discoverServices();
+                                      services.forEach((service) {
+                                        print(service.uuid.toString());
+                                      });
+                                      final service = services.firstWhere(
+                                          (service) =>
+                                              service.uuid.toString() ==
+                                              "457ec52f-15ab-4e93-8f29-c9c9ae9b22c2");
+                                      // Reads all characteristics
+                                      final characteristics =
+                                          service.characteristics;
+                                      for (BluetoothCharacteristic c
+                                          in characteristics) {
+                                        if (c.uuid.toString() ==
+                                            "fcdf225f-b0fa-44b4-9f5b-765c874117cc") {
+                                          _c = c;
+                                        }
+                                        // List<int> value = await c.read();
+                                        // print(value);
+                                      }
+                                    } catch (e) {
+                                      showErrorDialog(e.toString(), context);
+                                      return;
+                                    }
+                                    if (_c == null) return;
+                                    WidgetsFlutterBinding.ensureInitialized();
+                                    // Obtain a list of the available cameras on the device.
+                                    final cameras = await availableCameras();
+                                    // Get a specific camera from the list of available cameras.
+                                    final firstCamera = cameras.first;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => TakePictureScreen(
+                                          camera: firstCamera,
+                                          callback: (data) {
+                                            return _c!.write(data);
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                              .toList()
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            // if (_device != null)
             ElevatedButton(
               onPressed: () async {
-                final imageFile =
-                    await _picker.pickImage(source: ImageSource.gallery);
-                final imagePath =
-                    imageFile?.path.toNativeUtf8() ?? "none".toNativeUtf8();
-                final gaussian = dylib.lookupFunction<
-                    Void Function(Pointer<Utf8>),
-                    void Function(Pointer<Utf8>)>('Gaussian');
-                gaussian(imagePath);
-                setState(() {
-                  _img = Image.file(File(imagePath.toDartString()));
-                });
+                await _device?.disconnect();
+                _device = null;
+                setState(() {});
               },
-              child: Text("Pick Image from Gallery"),
+              child: const Text("Disconnect"),
             ),
-            Center(child: _img),
           ],
         ),
       ),
