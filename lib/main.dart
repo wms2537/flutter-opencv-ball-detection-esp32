@@ -35,9 +35,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'OpenCV on Flutter',
+      title: 'Ball Tracker',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: MyHomePage(title: 'OpenCV C++ on dart:ffi'),
+      home: MyHomePage(title: 'Connect BLE'),
     );
   }
 }
@@ -150,15 +150,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ),
-            // if (_device != null)
-            ElevatedButton(
-              onPressed: () async {
-                await _device?.disconnect();
-                _device = null;
-                setState(() {});
-              },
-              child: const Text("Disconnect"),
-            ),
+            if (_device != null)
+              ElevatedButton(
+                onPressed: () async {
+                  await _device?.disconnect();
+                  _device = null;
+                  setState(() {});
+                },
+                child: const Text("Disconnect"),
+              ),
           ],
         ),
       ),

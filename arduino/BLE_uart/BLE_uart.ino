@@ -56,8 +56,10 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     if (len > 0) {
       for (int i = 0; i < len; i++) {
         Serial.print(rxValue[i]);
-        Serial1.print(rxValue[i]);
+        Serial.print(" ");
+        Serial1.write(rxValue[i]);
       }
+      Serial.println("");
     }
   }
 };
@@ -65,7 +67,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
 
 void setup() {
   Serial.begin(115200);
-  Serial1.begin(9600, SERIAL_8N1, 13, 12);
+  Serial1.begin(115200, SERIAL_8N1, 15, 13);
 
   // Create the BLE Device
   BLEDevice::init("UART Service");

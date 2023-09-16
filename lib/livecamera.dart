@@ -188,8 +188,13 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                     oldp = p;
                   }
                 }
-                if (_frameCount % 3 == 0)
-                  await widget.callback(res.asTypedList(2).toList());
+                if (_frameCount % 5 == 0) {
+                  try {
+                    await widget.callback(res.asTypedList(2).toList());
+                  } catch (e) {
+                    if (mounted) Navigator.of(context).pop();
+                  }
+                }
               });
             }
           } catch (e) {
