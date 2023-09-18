@@ -64,7 +64,20 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+              onPressed: () {
+                if (FlutterBluePlus.isScanningNow == false) {
+                  FlutterBluePlus.startScan(
+                      timeout: const Duration(seconds: 15),
+                      androidUsesFineLocation: false);
+                }
+              },
+              icon: Icon(Icons.refresh))
+        ],
+      ),
       body: Center(
         child: Column(
           children: [
@@ -93,7 +106,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 (r) => ScanResultTile(
                                   result: r,
                                   onTap: () async {
-                                    _device = r.device;
+                                    setState(() {
+                                      _device = r.device;
+                                    });
                                     try {
                                       await _device!.connect();
                                       // Note: You must call discoverServices after every connection!
@@ -102,43 +117,71 @@ class _MyHomePageState extends State<MyHomePage> {
                                       services.forEach((service) {
                                         print(service.uuid.toString());
                                       });
-                                      final service = services.firstWhere(
+                                      final serviceIndex = services.indexWhere(
                                           (service) =>
                                               service.uuid.toString() ==
                                               "457ec52f-15ab-4e93-8f29-c9c9ae9b22c2");
-                                      // Reads all characteristics
-                                      final characteristics =
-                                          service.characteristics;
-                                      for (BluetoothCharacteristic c
-                                          in characteristics) {
-                                        if (c.uuid.toString() ==
-                                            "fcdf225f-b0fa-44b4-9f5b-765c874117cc") {
-                                          _c = c;
+                                      if (serviceIndex >= 0) {
+                                        final service = services[serviceIndex];
+                                        // Reads all characteristics
+                                        final characteristics =
+                                            service.characteristics;
+                                        for (BluetoothCharacteristic c
+                                            in characteristics) {
+                                          if (c.uuid.toString() ==
+                                              "fcdf225f-b0fa-44b4-9f5b-765c874117cc") {
+                                            _c = c;
+                                          }
+                                          // List<int> value = await c.read();
+                                          // print(value);
                                         }
-                                        // List<int> value = await c.read();
-                                        // print(value);
                                       }
                                     } catch (e) {
                                       showErrorDialog(e.toString(), context);
                                       return;
                                     }
-                                    if (_c == null) return;
+                                    if (_c == null) {
+                                      final res = await showDialog(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Warning'),
+                                          content: const Text(
+                                              'Not Expected BLE Device, are you sure to continue?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(ctx).pop(),
+                                              child: const Text('No'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(ctx).pop(true),
+                                              child: const Text('Yes'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (res != true) return;
+                                    }
                                     WidgetsFlutterBinding.ensureInitialized();
                                     // Obtain a list of the available cameras on the device.
                                     final cameras = await availableCameras();
                                     // Get a specific camera from the list of available cameras.
                                     final firstCamera = cameras.first;
-                                    Navigator.push(
+                                    await Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => TakePictureScreen(
                                           camera: firstCamera,
-                                          callback: (data) {
-                                            return _c!.write(data);
+                                          callback: (data) async {
+                                            await _c?.write(data);
                                           },
                                         ),
                                       ),
                                     );
+                                    await _device?.disconnect();
+                                    _device = null;
+                                    setState(() {});
                                   },
                                 ),
                               )
