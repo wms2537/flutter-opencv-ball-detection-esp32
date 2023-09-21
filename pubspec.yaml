@@ -11,10 +11,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  ffi: ^1.1.2
-  image_picker: ^0.8.2
+  ffi: ^2.1.0
+  image_picker: ^1.0.4
   camera: ^0.10.3+2
-  image: ^3.0.2
+  image: ^4.0.17
   flutter_blue_plus: ^1.15.5
   permission_handler: ^11.0.0
   crypto: ^3.0.3

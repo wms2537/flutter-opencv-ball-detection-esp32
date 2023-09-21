@@ -2,7 +2,7 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
-void image_ffi(uchar *buf, uint *size, uchar *res, double kp)
+void image_ffi(uchar *buf, uint *size, uchar *res, double *integral, double *lastErr, double kp, double ki, double kd, double maxVal)
 {
     std::vector<uchar> v(buf, buf + size[0]);
     cv::Mat img = cv::imdecode(cv::Mat(v), cv::IMREAD_COLOR);
@@ -43,25 +43,29 @@ void image_ffi(uchar *buf, uint *size, uchar *res, double kp)
             if (center.x != -1)
             {
                 float error = center.x - w/2.0;
-                float pOut = kp*std::abs(error);
-                float out = pOut/(w/2.0)*255;
+                if(std::abs(error) < 20) {
+                    error = 0;
+                }
+                float pOut = kp*error;
+                *integral += error;
+                float iOut = ki*(*integral);
+                float dOut = kd *(*lastErr);
+                float spin = pOut + iOut + dOut;
+                *lastErr = error;
+                ena = std::min(std::max(maxVal + spin/2, 0.0), 255.0);
+                enb = std::min(std::max(maxVal - spin/2, 0.0), 255.0);
                 if (error > 20)
                 {
                     cv::putText(img, "right", cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2, cv::LINE_4);
-                    ena = 255;
-                    enb = 255 - out;
+                    
                 }
                 else if (error < -20)
                 {
                     cv::putText(img, "left", cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2, cv::LINE_4);
-                    enb = 255;
-                    ena = 255 - out;
                 }
                 else
                 {
                     cv::putText(img, "forward", cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2, cv::LINE_4);
-                    ena = 255;
-                    enb = 255;
                 }
 
             } else {

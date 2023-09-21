@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/opencv_flutter_ffi.iml" filepath="$PROJECT_DIR$/opencv_flutter_ffi.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/opencv_flutter_ffi_android.iml" filepath="$PROJECT_DIR$/android/opencv_flutter_ffi_android.iml" />
+    </modules>
+  </component>
+</project>

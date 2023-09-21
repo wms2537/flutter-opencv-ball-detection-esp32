@@ -3,7 +3,7 @@
 android/app/.cxx/
 .flutter-plugins
 .flutter-plugins-dependencies
-ios/opencv2.framework
+ios/opencv2.xcframework
 # See https://www.dartlang.org/guides/libraries/private-files
 
 # Files and directories created by pub

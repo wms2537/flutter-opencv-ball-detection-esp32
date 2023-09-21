@@ -1,12 +1,7 @@
-import 'dart:convert';
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'dart:io';
-import 'package:camera/camera.dart';
 import 'package:opencv_flutter_ffi/error_dialog.dart';
 import 'package:opencv_flutter_ffi/scan_result_tile.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -163,16 +158,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                       );
                                       if (res != true) return;
                                     }
-                                    WidgetsFlutterBinding.ensureInitialized();
-                                    // Obtain a list of the available cameras on the device.
-                                    final cameras = await availableCameras();
-                                    // Get a specific camera from the list of available cameras.
-                                    final firstCamera = cameras.first;
                                     await Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => TakePictureScreen(
-                                          camera: firstCamera,
                                           callback: (data) async {
                                             await _c?.write(data);
                                           },
